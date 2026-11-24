@@ -366,7 +366,7 @@ const duce = (cam: CamInfo, t: number, out: Stage, id: number) => {
     for (const [k, x, z] of [[0, -3.4, 28.8], [1, 0.8, 29.4]] as const)
       stand(cam, out, { i: 91 + k, o: AIDE(k), okey: "aide" + k }, x, z, { mode: "stand", expr: t > at("embarrassing") - L ? "nervous" : "neutral", blink: lidAt(t, 91 + k) });
     // workers at the truck
-    for (const [k, x, z] of [[0, 12, 8.2], [1, 14.6, 10], [2, 10, 6.6]] as const)
+    for (const [k, x, z] of [[0, 12.6, 6.4], [1, 11.0, 8.4], [2, 14.4, 4.2]] as const)
       stand(cam, out, { i: 95 + k, o: WORKER(k), okey: "wk" + k }, x, z, { mode: "stand", expr: (["neutral", "stern", "smile_closed"] as Expr[])[k], prop: k === 1 ? "point" : null, blink: lidAt(t, 95 + k) });
     const u = (t - at("pump")) % 0.8;
     if (t > at("pump")) out.fx.push({ key: `puffC${q(u / 0.8, 30)}`, cw: 400, ch: 400, draw: (p) => fxPuff(p, q(u / 0.8, 30)), x: 8.4, y: D0 + 0.4, z: 2.9, w: 1.0, h: 1.0, soft: true });

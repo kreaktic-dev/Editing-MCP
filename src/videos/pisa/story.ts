@@ -119,9 +119,19 @@ const run = (keys: Key[], f: number) => {
   }
   return cur;
 };
+/** camera segment boundaries (every key and shot start/end), filled once CAMS exists */
+const BOUNDS: number[] = [];
+/** eased frame count since f0: the move accelerates over ~14 f, cruises, and decelerates to rest at the next key /
+ *  shot boundary (trapezoid velocity), so no move starts or stops abruptly. Mean speed matches the linear creep. */
+export const ez = (f: number, f0: number) => {
+  const end = BOUNDS.find((b) => b > f0 + 6) ?? f0 + 120, L = Math.max(8, end - f0), x = Math.min(Math.max(0, f - f0), L);
+  const a = Math.min(14, L / 3), m = 0.3; // ease between 30 % and full speed: never comes to rest
+  const p = x < a ? (x * x) / (2 * a) : x <= L - a ? a / 2 + (x - a) : L - a - ((L - x) * (L - x)) / (2 * a);
+  return (m * x + (1 - m) * p) * (L / (m * L + (1 - m) * (L - a)));
+};
 const pushK = (f: number, f0: number, rate: number, punch = 0, n = 35) => {
   const x = Math.max(0, f - f0);
-  let s = rate * x;
+  let s = rate * ez(f, f0);
   if (punch > rate) for (let i = 0; i < Math.min(x, n); i++) s += (punch - rate) * Math.max(0, Math.min(1, (i + 0.5) / 8, (n - i - 0.5) / 8));
   return Math.exp(-s);
 };
@@ -130,7 +140,7 @@ const dolly = (pos: V3, look: V3, k: number, rest: Partial<Cam> = {}): Shot =>
 const zoom = (pos: V3, look: V3, fov: number, k: number, rest: Partial<Cam> = {}): Shot =>
   ({ pos, look, fov: (360 / Math.PI) * Math.atan(Math.tan((fov * Math.PI) / 360) * k), ...rest });
 /** slow sideways drift (m/frame) so even pure zoom holds keep parallax */
-const drift = (s: Shot, f: number, f0: number, v: V3): Shot => ({ ...s, pos: [s.pos[0] + v[0] * (f - f0), s.pos[1] + v[1] * (f - f0), s.pos[2] + v[2] * (f - f0)] });
+const drift = (s: Shot, f: number, f0: number, v: V3): Shot => { const e = ez(f, f0); return { ...s, pos: [s.pos[0] + v[0] * e, s.pos[1] + v[1] * e, s.pos[2] + v[2] * e] }; };
 const A = SHOTS.map((s) => s.a);
 const sa = (id: number) => A[id - 1];
 
@@ -159,8 +169,8 @@ const CAMS: Record<number, Key[]> = {
   ],
   // 5 war: soldiers march past the stub, the builders watch
   5: [
-    { f: sa(5), s: (f) => dolly([-9 + 0.04 * (f - sa(5)), 2.0, 46], [-1 + 0.03 * (f - sa(5)), 4, 22], pushK(f, sa(5), 0.002), { fov: 42 }) },
-    { f: fa("war") - 8, dur: 20, s: (f) => dolly([-7 + 0.04 * (f - sa(5)), 1.6, 42], [-1 + 0.03 * (f - sa(5)), 3, 24], pushK(f, fa("war"), 0.002, 0.006, 28), { fov: 40, roll: -0.04 }) },
+    { f: sa(5), s: (f) => dolly([-9 + 0.04 * ez(f, sa(5)), 2.0, 46], [-1 + 0.03 * ez(f, sa(5)), 4, 22], pushK(f, sa(5), 0.002), { fov: 42 }) },
+    { f: fa("war") - 8, dur: 20, s: (f) => dolly([-7 + 0.04 * ez(f, sa(5)), 1.6, 42], [-1 + 0.03 * ez(f, sa(5)), 3, 24], pushK(f, fa("war"), 0.002, 0.006, 28), { fov: 40, roll: -0.04 }) },
   ],
   // 6 tools drop: MS of the builders -> ground insert as the shovels hit (kick)
   6: [
@@ -191,7 +201,7 @@ const CAMS: Record<number, Key[]> = {
     { f: sa(10) - 4, s: (f) => dolly([2.0, 1.45, 35.5], [-1.2, 1.9, 28], pushK(f, sa(10), 0.0025), { fov: 40, roll: 0.02 }) },
     { f: fa("embarrassing") - 6, dur: 18, s: (f) => dolly([1.6, 1.5, 33.3], [-1.3, 1.95, 28], pushK(f, fa("embarrassing"), 0.002, 0.006, 26), { fov: 38, roll: -0.04 }) },
     { f: fa("orders"), cut: true, s: (f) => drift(dolly([-7, 0.9, 42], [0, 12, 14], pushK(f, fa("orders"), 0.0025), { fov: 48, roll: 0.03 }), f, fa("orders"), [0.02, 0, 0]) },
-    { f: fa("so his"), cut: true, s: (f) => drift(dolly([42, 4.5, 19], [11, 2.6, 3], pushK(f, fa("so his"), 0.0025, 0.005, 30), { fov: 44 }), f, fa("so his"), [-0.02, 0, 0]) },
+    { f: fa("so his"), cut: true, s: (f) => drift(dolly([36, 9, 22], [14.5, 1.2, 5.5], pushK(f, fa("so his"), 0.0025, 0.005, 30), { fov: 44 }), f, fa("so his"), [-0.02, 0, 0]) },
   ],
   // 11 it leans even further: wide, kick on "further"
   11: [
@@ -222,6 +232,9 @@ const CAMS: Record<number, Key[]> = {
     { f: fa("standing up") - 6, dur: 56, s: (f) => drift(dolly([26, 26, 70], [2, 13, 0], pushK(f, fa("standing up"), 0.002), { fov: 46 }), f, fa("standing up"), [-0.02, 0.01, 0]) },
   ],
 };
+
+for (const s2 of SHOTS) { BOUNDS.push(s2.a, s2.b); for (const k of CAMS[s2.id]) BOUNDS.push(k.f); }
+BOUNDS.sort((x, y) => x - y);
 
 // impact kicks: image offset flips sign each frame, decays over 7 f
 const KICKS: [number, number][] = [[T_TIP + 0.2, 1.0], [T_TOOLS + 0.15, 0.7], [T_FURTHER + 0.2, 1.6], [at("squeeze") + 0.1, 0.5], [at("sinks") + 0.1, 0.5]];
@@ -272,7 +285,7 @@ export const DOF: Dof[] = [
 export const dofAt = (f: number) => {
   let i = 0; while (i + 1 < DOF.length && f >= DOF[i + 1].f) i++;
   const d = DOF[i], p = DOF[Math.max(0, i - 1)];
-  const k = d.dur ? Math.min(1, (f - d.f) / d.dur) : 1;
+  const k = d.dur ? glide((f - d.f) / d.dur) : 1;
   return { cInf: p.cInf + (d.cInf - p.cInf) * k, focus: d.focus };
 };
 

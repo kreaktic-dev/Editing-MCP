@@ -4,6 +4,7 @@
 // `id` at frame f (a pure function of id + f).
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { staticFile } from "remotion";
 import { Batch, boxGeo, V, lam, buildPisa, Kit, Ray, kitClone, prop, quad } from "./build";
 import { ctex, grassHD, stoneHD, cloudHD, rep } from "./paint";
@@ -81,26 +82,40 @@ const sightLines = (): Ray[] => {
   return out;
 };
 
-/** a 1930s concrete mixer lorry (local +x = rear): rounded cab, flatbed, turning striped drum, Kenney wheels */
-const drumTex = () => ctex("drum", 256, 128, (g) => { g.fillStyle = "#cfc8b8"; g.fillRect(0, 0, 256, 128); g.fillStyle = "#c0353a"; for (let x = 0; x < 256; x += 64) g.fillRect(x, 0, 22, 128); });
-const mixerTruck = (kit: Kit) => {
-  const g = new THREE.Group(), add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
-  const body = lam("mixBody", () => ({ color: "#2f5f6a" })), dark = lam("mixDark", () => ({ color: "#2a2c33" })), glass = lam("mixGlass", () => ({ color: "#9fc4d8" }));
-  add(new THREE.BoxGeometry(5.6, 0.35, 1.9), dark, 0.6, 0.85, 0);
-  add(new THREE.BoxGeometry(1.7, 1.5, 1.9), body, -1.6, 1.75, 0);
-  add(new THREE.BoxGeometry(0.06, 0.6, 1.5), glass, -2.47, 2.05, 0);
-  add(new THREE.BoxGeometry(1.4, 0.9, 1.7), body, -3.0, 1.35, 0); // bonnet
-  add(new THREE.BoxGeometry(0.08, 0.7, 1.2), dark, -3.72, 1.35, 0); // grille
-  for (const s of [-1, 1]) { const fe = add(new THREE.CylinderGeometry(0.62, 0.62, 0.36, 16, 1, false, 0, Math.PI), body, -2.9, 0.75, s * 0.86); fe.rotation.x = Math.PI / 2; fe.rotation.z = Math.PI / 2; }
-  const drum = new THREE.Group(); drum.position.set(1.2, 2.0, 0); drum.rotation.z = -0.2; g.add(drum);
-  const dg = new THREE.CylinderGeometry(0.95, 0.7, 3.0, 24); dg.rotateZ(Math.PI / 2);
-  const dm = new THREE.Mesh(dg, lam("drumM", () => ({ map: drumTex() }))); dm.castShadow = true; drum.add(dm);
-  const spin = new THREE.Group(); drum.add(spin); spin.add(dm); g.userData.drum = spin;
-  for (const [x, z] of [[-2.9, 0.95], [-2.9, -0.95], [1.9, 0.95], [1.9, -0.95], [2.9, 0.95], [2.9, -0.95]] as const) {
-    const w = kitClone(kit, "wheel", 1.0);
-    if (w) { w.position.set(x, 0, z); w.rotation.y = Math.PI / 2; g.add(w); }
-    else add(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16).rotateX(Math.PI / 2), dark, x, 0.5, z);
+/** a 1930s concrete mixer lorry, built from smooth parts (clean ink, no texture shimmer). Local -x = cab, +x = rear chute.
+ *  The drum carries a red spiral fin so its turning reads without any striped texture. */
+const mixerTruck = () => {
+  const g = new THREE.Group(), add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = g) => {
+    const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; parent.add(o); return o; };
+  const body = lam("mixBody", () => ({ color: "#3d7a86" })), dark = lam("mixDark", () => ({ color: "#2a2c33" })), glass = lam("mixGlass", () => ({ color: "#2e3a4a" }));
+  const hub = lam("mixHub", () => ({ color: "#c9ccd2" })), cream = lam("mixDrum", () => ({ color: "#e6dfcf" })), red = lam("mixRed", () => ({ color: "#c0353a" }));
+  add(new RoundedBoxGeometry(5.6, 0.3, 1.3, 2, 0.06), dark, 0.4, 0.95, 0);                 // chassis
+  add(new RoundedBoxGeometry(1.6, 1.55, 2.0, 3, 0.2), body, -1.55, 1.9, 0);               // cab
+  add(new RoundedBoxGeometry(1.5, 0.95, 1.5, 3, 0.22), body, -3.05, 1.45, 0);             // bonnet
+  add(new RoundedBoxGeometry(0.12, 0.8, 1.2, 2, 0.04), dark, -3.82, 1.45, 0);             // grille
+  add(new THREE.BoxGeometry(0.05, 0.62, 1.6), glass, -2.37, 2.25, 0);                      // windscreen
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.9, 0.55, 0.05), glass, -1.5, 2.25, s * 1.015); // side windows
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.13, 12, 8), lam("mixLamp", () => ({ color: "#f4e6b0" })), -3.85, 1.75, s * 0.55);
+  // wheels: rubber tyre + hub, fenders above
+  const tyre = new THREE.CylinderGeometry(0.5, 0.5, 0.32, 28); tyre.rotateX(Math.PI / 2);
+  const hubG = new THREE.CylinderGeometry(0.22, 0.22, 0.36, 16); hubG.rotateX(Math.PI / 2);
+  for (const [x, s] of [[-2.9, 1], [-2.9, -1], [1.7, 1], [1.7, -1], [2.8, 1], [2.8, -1]] as const) {
+    add(tyre, dark, x, 0.5, s * 0.92); add(hubG, hub, x, 0.5, s * 0.92);
   }
+  for (const [x, w2, s] of [[-2.9, 1.2, 1], [-2.9, 1.2, -1], [2.25, 2.3, 1], [2.25, 2.3, -1]] as const) add(new RoundedBoxGeometry(w2, 0.14, 0.46, 2, 0.05), body, x, 1.08, s * 0.92);
+  // drum on its cradle, tilted up toward the cab, chute at the rear
+  for (const x of [-0.1, 2.3]) add(new RoundedBoxGeometry(0.25, x < 1 ? 1.2 : 0.75, 1.0, 2, 0.06), dark, x, x < 1 ? 1.7 : 1.45, 0);
+  const tilt = new THREE.Group(); tilt.position.set(1.15, 2.05, 0); tilt.rotation.z = 0.18; g.add(tilt);
+  const spin = new THREE.Group(); tilt.add(spin);
+  const prof = [[0.05, -1.7], [0.45, -1.55], [0.92, -0.9], [1.05, -0.1], [0.95, 0.7], [0.62, 1.35], [0.3, 1.6], [0.28, 1.75]].map(([r, y]) => new THREE.Vector2(r, y));
+  const drumG = new THREE.LatheGeometry(prof, 32); drumG.rotateZ(Math.PI / 2);
+  add(drumG, cream, 0, 0, 0, spin);
+  const R0 = (u: number) => 0.06 + Math.max(0.3, Math.sin(Math.PI * Math.min(1, Math.max(0, (u + 1.7) / 3.45))) * 1.06);
+  const helix = new THREE.CatmullRomCurve3(Array.from({ length: 60 }, (_, k) => { const u = -1.45 + 2.85 * (k / 59), a = (k / 59) * Math.PI * 5;
+    return new THREE.Vector3(-u, Math.cos(a) * R0(-u), Math.sin(a) * R0(-u)); }));
+  add(new THREE.TubeGeometry(helix, 240, 0.07, 6), red, 0, 0, 0, spin); // spiral fin
+  add(new RoundedBoxGeometry(0.9, 0.12, 0.45, 2, 0.04), dark, 3.25, 1.45, 0).rotation.z = -0.45; // chute
+  g.userData.drum = spin;
   return g;
 };
 
@@ -272,9 +287,9 @@ export class World {
     const cg = new THREE.CircleGeometry(1, 40); cg.rotateX(-Math.PI / 2);
     this.concrete = new THREE.Mesh(cg, conc); this.concrete.receiveShadow = true; this.concrete.position.set(8.6, D0 + 0.04, 2.5); this.eras.m1934.add(this.concrete);
     // hose from the truck to the base
-    this.mixer = mixerTruck(kit); this.mixer.position.set(...TRUCK); this.mixer.rotation.y = 0.35; this.eras.m1934.add(this.mixer);
-    const hose = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(TRUCK[0] - 3.0, 1.0, TRUCK[2] - 1.6), V(15, 0.3, 5.5), V(11, 0.12, 3.6), V(8.6, 0.12, 2.8)]), 40, 0.12, 8);
-    const hm = new THREE.Mesh(hose, lam("hose", () => ({ color: "#2d2f36" }))); hm.castShadow = true; this.eras.m1934.add(hm);
+    this.mixer = mixerTruck(); this.mixer.position.set(...TRUCK); this.mixer.rotation.y = Math.PI + 0.35; this.eras.m1934.add(this.mixer);
+    const hose = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(TRUCK[0] - 3.4, 1.15, TRUCK[2] + 1.2), V(TRUCK[0] - 4.6, 0.25, TRUCK[2] + 0.4), V(13, 0.17, 4.6), V(8.6, 0.17, 2.8)]), 60, 0.17, 10);
+    const hm = new THREE.Mesh(hose, lam("hose2", () => ({ color: "#4a3f38" }))); hm.castShadow = true; this.eras.m1934.add(hm);
     const sg = new THREE.ConeGeometry(1, 1, 24); sg.translate(0, 0.5, 0);
     this.soil = new THREE.Mesh(sg, lam("soilHeap", () => ({ map: mudTex() }))); this.soil.castShadow = true; this.soil.receiveShadow = true;
     this.soil.position.set(DRILL[0] - 1.5, D0, DRILL[2] - 2.6); this.eras.m1990.add(this.soil);
@@ -376,7 +391,7 @@ export class World {
       const u = clamp01((t - at("pump")) / 2.5), r = 0.3 + 2.6 * smooth(u) + (id === 11 ? 2.9 : 0);
       this.concrete.scale.set(id === 11 ? 3.2 : r, 1, id === 11 ? 3.2 : r);
       this.concrete.visible = id === 11 || t > at("pump") - 0.1;
-      (this.mixer.userData.drum as THREE.Object3D).rotation.x = t * 2.2;
+      (this.mixer.userData.drum as THREE.Object3D).rotation.x = t * 1.6;
     }
     if (s.era === "1990") {
       const u = id === 14 ? 1 : clamp01((t - at("pulled")) / 3);
