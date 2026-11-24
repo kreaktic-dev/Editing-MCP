@@ -6,8 +6,11 @@ import { execFileSync } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 const [scale = "1", conc = "2"] = process.argv.slice(2);
-const browserExecutable = process.env.CHROME || "/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell";
-const chromiumOptions = { gl: "swangle" };
+// GPU by default (ANGLE: Direct3D on Windows, so an RTX card renders it). In the cloud container (no GPU) we fall back
+// to the preinstalled headless Chromium + SwiftShader. Override with CHROME=<path> and GL=angle|swangle|egl|vulkan.
+const CLOUD = "/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell";
+const browserExecutable = process.env.CHROME || (fs.existsSync(CLOUD) ? CLOUD : null);
+const chromiumOptions = { gl: process.env.GL || (browserExecutable === CLOUD ? "swangle" : "angle") };
 const D = `out/pisa/chunks_${scale}`;
 fs.mkdirSync(D, { recursive: true });
 const serveUrl = await bundle({ entryPoint: path.resolve("src/index.ts"), publicDir: path.resolve("public") });

@@ -36,6 +36,28 @@ node scripts/render.mjs 1 2                      # full 1080x1920 render (resuma
 node scripts/render.mjs 1.3333 2                 # 2K final 1440x2560
 ```
 
+## Rendering on Windows with an NVIDIA GPU (e.g. RTX 3050)
+One-time setup in PowerShell:
+```powershell
+winget install OpenJS.NodeJS.LTS Python.Python.3.12 Gyan.FFmpeg Git.Git   # then reopen PowerShell
+git clone -b ccr-e20275d9-m8y0w0 https://github.com/kreaktic-dev/Editing-MCP.git
+cd Editing-MCP
+npm ci
+pip install -r requirements.txt
+```
+Render (Remotion downloads its own headless Chrome on the first run and draws through ANGLE/Direct3D, i.e. on the RTX card):
+```powershell
+node scripts/stills.mjs out/pisa/test_ 300,1100 0.5    # quick check: two stills in out/pisa/
+npx tsx scripts/anchors.ts; python audio/pisa_sound.py  # picture timeline -> score + SFX
+node scripts/render.mjs 1.3333 1                        # 1440x2560 final -> out/pisa/video_1.3333.mp4
+python audio/pisa_mix.py --mux out/pisa/video_1.3333.mp4 out/pisa/final.mp4                  # no voice yet: music + SFX
+python audio/pisa_mix.py voice.wav --mux out/pisa/video_1.3333.mp4 out/pisa/final.mp4        # with your voice-over
+```
+- `render.mjs <scale> <concurrency>`: use concurrency 1 on a 4 GB card and 2 on an 8 GB card. Use scale `1` for a faster 1080x1920 preview.
+- The render works in chunks of 150 frames under `out/pisa/chunks_<scale>/`. If it stops, run the same command again and it continues from the last finished chunk. Delete that folder after any change to the picture.
+- If the stills come out black or the log says WebGL is unavailable, try `$env:GL="vulkan"` (or `"egl"`) before the command, and make sure Windows uses the NVIDIA GPU for `node.exe` (Settings > Display > Graphics > High performance).
+- Open `npm run studio` to scrub the timeline live in the browser.
+
 ## Adding the voice-over
 1. Record `voice.wav`, reading `SCRIPT.md` in one steady tone (~3.7 words/s, ~60 s).
 2. Get word timings, either way:

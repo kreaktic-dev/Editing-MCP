@@ -5,8 +5,11 @@ import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 const [prefix, frames, scale = "0.5"] = process.argv.slice(2);
 fs.mkdirSync(path.dirname(prefix), { recursive: true });
-const browserExecutable = process.env.CHROME || "/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell";
-const chromiumOptions = { gl: process.env.GL || "swangle" };
+// GPU by default (ANGLE: Direct3D on Windows, so an RTX card renders it). In the cloud container (no GPU) we fall back
+// to the preinstalled headless Chromium + SwiftShader. Override with CHROME=<path> and GL=angle|swangle|egl|vulkan.
+const CLOUD = "/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell";
+const browserExecutable = process.env.CHROME || (fs.existsSync(CLOUD) ? CLOUD : null);
+const chromiumOptions = { gl: process.env.GL || (browserExecutable === CLOUD ? "swangle" : "angle") };
 const serveUrl = await bundle({ entryPoint: path.resolve(process.env.ENTRY || "src/index.ts"), publicDir: path.resolve("public") });
 const composition = await selectComposition({ serveUrl, id: process.env.COMP || "PisaShort", browserExecutable, chromiumOptions });
 const onBrowserLog = (l) => { if (l.type === "error" || l.type === "warning") console.log(`[${l.type}]`, l.text.slice(0, 300)); };
