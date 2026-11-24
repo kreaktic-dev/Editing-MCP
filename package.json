@@ -1,23 +1,29 @@
 {
-  "name": "after-effects-mcp",
+  "name": "animated-shorts",
   "version": "1.0.0",
-  "description": "MCP server for Adobe After Effects",
-  "main": "build/index.js",
+  "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && copyfiles -u 1 \"src/scripts/**/*\" build",
-    "start": "node build/index.js",
-    "install-bridge": "node install-bridge.js",
-    "postinstall": "npm run build"
+    "studio": "remotion studio src/index.ts",
+    "render": "node scripts/render.mjs 1 2",
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "node-fetch": "^3.3.2",
-    "zod": "^3.22.2"
+    "@react-three/fiber": "9.3.0",
+    "@react-three/postprocessing": "3.0.4",
+    "@remotion/bundler": "4.0.375",
+    "@remotion/cli": "4.0.375",
+    "@remotion/renderer": "4.0.375",
+    "@remotion/three": "4.0.375",
+    "postprocessing": "6.37.6",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.375",
+    "three": "0.178.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.30",
-    "copyfiles": "^2.4.1",
-    "typescript": "^5.2.2"
+    "@types/react": "19.1.8",
+    "@types/three": "0.178.1",
+    "typescript": "5.8.3"
   }
 }
