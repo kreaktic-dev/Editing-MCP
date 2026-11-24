@@ -3,3 +3,4 @@ out/
 *.log
 __pycache__/
 voice/*.wav
+voice/*.mp3
